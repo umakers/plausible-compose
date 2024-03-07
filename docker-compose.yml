@@ -1,8 +1,4 @@
 services:
-  mail:
-    image: bytemark/smtp
-    restart: always
-
   plausible_db:
     # Plausible v2.0.0 was tested against PostgreSQL versions 12, 13, and 14
     # https://github.com/plausible/analytics/blob/v2.0.0/.github/workflows/elixir.yml#L16
@@ -27,18 +23,33 @@ services:
         hard: 262144
 
   plausible:
-    image: plausible/analytics:v2.0
+    image: plausible-umakers:v1.1
     restart: always
     command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
     depends_on:
       - plausible_db
       - plausible_events_db
-      - mail
     ports:
       - 127.0.0.1:8000:8000
     env_file:
       - plausible-conf.env
 
+  caddy:
+    image: caddy:latest
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    depends_on:
+      - plausible
+    volumes:
+      - $PWD/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    
 volumes:
   db-data:
     driver: local
@@ -46,4 +57,7 @@ volumes:
     driver: local
   event-logs:
     driver: local
-
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
